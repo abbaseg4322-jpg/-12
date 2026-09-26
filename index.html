@@ -10,16 +10,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; }
+        body { font-family: 'Cairo', sans-serif; background-color: #f3f4f6; }
+        
+        /* إعدادات الطباعة بحجم A4 */
         @media print {
+            @page { size: A4; margin: 20mm; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            body { background: white; padding: 0; margin: 0; }
+            body { background: white !important; margin: 0; padding: 0; }
         }
         .print-only { display: none; }
     </style>
 </head>
-<body class="bg-gray-100 h-screen overflow-hidden">
+<body class="h-screen overflow-hidden">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -27,7 +30,7 @@
 
         function App() {
             const [activePage, setActivePage] = useState('dashboard');
-            const [printData, setPrintData] = useState(null); // بيانات الوصل المطلوب طباعته
+            const [printStudentData, setPrintStudentData] = useState(null); // بيانات كشف الحساب A4
             
             // --- قاعدة البيانات المحلية ---
             const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('institute_settings')) || { name: 'معهد النجاح' });
@@ -38,7 +41,7 @@
             const [enrollments, setEnrollments] = useState(() => JSON.parse(localStorage.getItem('institute_enrollments')) || []);
             const [payments, setPayments] = useState(() => JSON.parse(localStorage.getItem('institute_payments')) || []);
 
-            // حفظ التلقائي
+            // الحفظ التلقائي
             useEffect(() => { localStorage.setItem('institute_settings', JSON.stringify(settings)); }, [settings]);
             useEffect(() => { localStorage.setItem('institute_classes', JSON.stringify(classes)); }, [classes]);
             useEffect(() => { localStorage.setItem('institute_teachers', JSON.stringify(teachers)); }, [teachers]);
@@ -47,55 +50,121 @@
             useEffect(() => { localStorage.setItem('institute_enrollments', JSON.stringify(enrollments)); }, [enrollments]);
             useEffect(() => { localStorage.setItem('institute_payments', JSON.stringify(payments)); }, [payments]);
 
-            // دالة الطباعة
-            const handlePrintReceipt = (payment, studentName, courseName) => {
-                setPrintData({ payment, studentName, courseName, date: new Date().toLocaleDateString('ar-IQ') });
+            // دالة طباعة كشف الحساب A4
+            const handlePrintStatement = (student) => {
+                const studentEnrollments = enrollments.filter(e => e.studentId === student.id);
+                setPrintStudentData({
+                    student,
+                    enrollments: studentEnrollments,
+                    date: new Date().toLocaleDateString('ar-IQ'),
+                    time: new Date().toLocaleTimeString('ar-IQ')
+                });
                 setTimeout(() => window.print(), 300);
             };
 
             return (
                 <div className="flex h-screen w-full">
                     {/* --- القائمة الجانبية --- */}
-                    <aside className="w-64 bg-slate-800 text-white flex flex-col no-print shadow-xl z-10">
+                    <aside className="w-64 bg-slate-800 text-white flex flex-col no-print shadow-xl z-10 shrink-0">
                         <div className="p-6 border-b border-slate-700">
-                            <h2 className="text-xl font-bold">{settings.name}</h2>
+                            <h2 className="text-xl font-bold truncate">{settings.name}</h2>
                         </div>
-                        <nav className="flex-1 p-4 space-y-2">
+                        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                             <button onClick={() => setActivePage('dashboard')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'dashboard' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>📊 الرئيسية</button>
                             <button onClick={() => setActivePage('classes')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'classes' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>📚 الصفوف والمواد</button>
                             <button onClick={() => setActivePage('teachers')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'teachers' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>👨‍🏫 المدرسين والدورات</button>
-                            <button onClick={() => setActivePage('students')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'students' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>👨‍🎓 الطلاب والمالية</button>
+                            <button onClick={() => setActivePage('students')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'students' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>👨‍🎓 الطلاب والتسجيل</button>
                         </nav>
                     </aside>
 
-                    {/* --- مساحة العرض --- */}
-                    <main className="flex-1 overflow-y-auto bg-gray-50 p-8 no-print">
+                    {/* --- مساحة العرض الرئيسية --- */}
+                    <main className="flex-1 overflow-y-auto bg-gray-100 p-8 no-print relative">
                         {activePage === 'dashboard' && <DashboardPage students={students} payments={payments} />}
                         {activePage === 'classes' && <ClassesPage classes={classes} setClasses={setClasses} />}
                         {activePage === 'teachers' && <TeachersPage teachers={teachers} setTeachers={setTeachers} classes={classes} courses={courses} setCourses={setCourses} />}
-                        {activePage === 'students' && <StudentsPage students={students} setStudents={setStudents} classes={classes} courses={courses} teachers={teachers} enrollments={enrollments} setEnrollments={setEnrollments} payments={payments} setPayments={setPayments} onPrint={handlePrintReceipt} />}
+                        {activePage === 'students' && <StudentsPage students={students} setStudents={setStudents} classes={classes} courses={courses} teachers={teachers} enrollments={enrollments} setEnrollments={setEnrollments} payments={payments} setPayments={setPayments} onPrintStatement={handlePrintStatement} />}
                     </main>
 
-                    {/* --- قالب طباعة الوصل المالي --- */}
-                    {printData && (
-                        <div className="print-only p-10 w-[80mm] mx-auto text-center font-bold text-black border-2 border-black" dir="rtl">
-                            <h1 className="text-2xl mb-2">{settings.name}</h1>
-                            <p className="text-sm mb-4">وصل قبض مالي</p>
-                            <hr className="border-black mb-4"/>
-                            
-                            <div className="text-right text-sm space-y-2 mb-6">
-                                <p>رقم الوصل: {printData.payment.id}</p>
-                                <p>التاريخ: {printData.date}</p>
-                                <p>استلمنا من الطالب: <span className="text-lg">{printData.studentName}</span></p>
-                                <p>عن دورة: {printData.courseName}</p>
+                    {/* --- قالب طباعة كشف الحساب (A4) --- */}
+                    {printStudentData && (
+                        <div className="print-only p-8 w-full font-sans text-black" dir="rtl">
+                            {/* ترويسة الوصل (Header) */}
+                            <div className="text-center mb-8 border-b-2 border-black pb-4">
+                                <h1 className="text-3xl font-bold mb-2">{settings.name}</h1>
+                                <h2 className="text-xl">كشف حساب طالب مفصل</h2>
+                                <p className="text-sm mt-2">التاريخ: {printStudentData.date} | الوقت: {printStudentData.time}</p>
                             </div>
                             
-                            <div className="border border-black p-3 text-xl mb-4">
-                                المبلغ: {printData.payment.amount} د.ع
+                            {/* معلومات الطالب */}
+                            <div className="mb-8 p-4 border border-black bg-gray-50">
+                                <h3 className="font-bold text-lg mb-3 border-b border-gray-300 pb-2">معلومات الطالب</h3>
+                                <div className="grid grid-cols-2 gap-4 text-md">
+                                    <p><strong>اسم الطالب:</strong> {printStudentData.student.name}</p>
+                                    <p><strong>الصف الدراسي:</strong> {classes.find(c => c.id === printStudentData.student.classId)?.name || 'غير محدد'}</p>
+                                    <p><strong>العنوان (السكن):</strong> {printStudentData.student.address}</p>
+                                    <p><strong>هاتف الطالب:</strong> {printStudentData.student.phone}</p>
+                                    <p><strong>هاتف ولي الأمر:</strong> {printStudentData.student.parentPhone}</p>
+                                </div>
                             </div>
                             
-                            <hr className="border-black mb-4"/>
-                            <p className="text-xs">توقيع المستلم: .....................</p>
+                            {/* جدول المواد والحسابات */}
+                            <h3 className="font-bold text-lg mb-3">تفاصيل المواد والحسابات المالية</h3>
+                            <table className="w-full border-collapse border border-black mb-8 text-sm">
+                                <thead className="bg-gray-200">
+                                    <tr>
+                                        <th className="border border-black p-2 text-right">المادة (المدرس)</th>
+                                        <th className="border border-black p-2 text-center">المبلغ الكلي</th>
+                                        <th className="border border-black p-2 text-center">الواصل (المُسدد)</th>
+                                        <th className="border border-black p-2 text-center">المتبقي بذمته</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {printStudentData.enrollments.map(enr => {
+                                        const course = courses.find(c => c.id === enr.courseId);
+                                        const teacher = teachers.find(t => t.id === course?.teacherId);
+                                        const remaining = enr.totalDue - enr.totalPaid;
+                                        return (
+                                            <tr key={enr.id}>
+                                                <td className="border border-black p-2">{course?.subjectName} (أ. {teacher?.name})</td>
+                                                <td className="border border-black p-2 text-center">{enr.totalDue.toLocaleString()}</td>
+                                                <td className="border border-black p-2 text-center">{enr.totalPaid.toLocaleString()}</td>
+                                                <td className="border border-black p-2 text-center font-bold">{remaining.toLocaleString()}</td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {printStudentData.enrollments.length === 0 && (
+                                        <tr><td colSpan="4" className="border border-black p-4 text-center">الطالب غير مسجل في أي مادة حالياً.</td></tr>
+                                    )}
+                                </tbody>
+                                {/* الإجمالي */}
+                                {printStudentData.enrollments.length > 0 && (
+                                    <tfoot className="bg-gray-100 font-bold">
+                                        <tr>
+                                            <td className="border border-black p-2 text-left">الإجمالي الكلي:</td>
+                                            <td className="border border-black p-2 text-center">
+                                                {printStudentData.enrollments.reduce((sum, e) => sum + e.totalDue, 0).toLocaleString()}
+                                            </td>
+                                            <td className="border border-black p-2 text-center">
+                                                {printStudentData.enrollments.reduce((sum, e) => sum + e.totalPaid, 0).toLocaleString()}
+                                            </td>
+                                            <td className="border border-black p-2 text-center text-red-600">
+                                                {printStudentData.enrollments.reduce((sum, e) => sum + (e.totalDue - e.totalPaid), 0).toLocaleString()} د.ع
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                            
+                            <div className="flex justify-between mt-16 text-center">
+                                <div>
+                                    <p>.......................................</p>
+                                    <p className="mt-2 font-bold">توقيع الإدارة / المحاسب</p>
+                                </div>
+                                <div>
+                                    <p>.......................................</p>
+                                    <p className="mt-2 font-bold">توقيع المستلم (الطالب)</p>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -103,221 +172,201 @@
         }
 
         // ---------------------------------------------------------
-        // 1. صفحة المدرسين والدورات (إنشاء Courses)
+        // صفحة الطلاب والتسجيل (المحدثة)
         // ---------------------------------------------------------
-        function TeachersPage({ teachers, setTeachers, classes, courses, setCourses }) {
-            const [newTeacher, setNewTeacher] = useState('');
-            const [selectedTeacher, setSelectedTeacher] = useState(null);
-            // متغيرات إسناد دورة
-            const [courseClass, setCourseClass] = useState('');
-            const [courseSubject, setCourseSubject] = useState('');
-            const [coursePrice, setCoursePrice] = useState('');
+        function StudentsPage({ students, setStudents, classes, courses, teachers, enrollments, setEnrollments, payments, setPayments, onPrintStatement }) {
+            const [view, setView] = useState('list'); // 'list' أو 'profile' أو 'new'
+            const [selectedStudent, setSelectedStudent] = useState(null);
 
-            const addTeacher = () => {
-                if(newTeacher.trim() === '') return;
-                setTeachers([...teachers, { id: Date.now().toString(), name: newTeacher }]);
-                setNewTeacher('');
+            // بيانات التسجيل الجديد
+            const [newStudentData, setNewStudentData] = useState({ name: '', address: '', phone: '', parentPhone: '', classId: '' });
+
+            const handleAddStudent = (e) => {
+                e.preventDefault();
+                if(!newStudentData.name || !newStudentData.classId) return alert('الاسم والصف مطلوبان');
+                const newStudent = { id: Date.now().toString(), ...newStudentData };
+                setStudents([...students, newStudent]);
+                setNewStudentData({ name: '', address: '', phone: '', parentPhone: '', classId: '' });
+                setView('list');
             };
 
-            const assignCourse = () => {
-                if(!selectedTeacher || !courseClass || !courseSubject || !coursePrice) return alert("أكمل البيانات");
-                const newCourse = {
-                    id: Date.now().toString(),
-                    teacherId: selectedTeacher,
-                    classId: courseClass,
-                    subjectName: courseSubject,
-                    price: parseInt(coursePrice)
-                };
-                setCourses([...courses, newCourse]);
-                setCourseSubject(''); setCoursePrice('');
-            };
-
-            return (
-                <div className="space-y-6">
-                    {/* إضافة مدرس */}
-                    <div className="bg-white p-6 rounded-xl shadow">
-                        <h2 className="text-xl font-bold mb-4">إضافة مدرس جديد</h2>
-                        <div className="flex gap-2 max-w-md">
-                            <input type="text" value={newTeacher} onChange={e => setNewTeacher(e.target.value)} placeholder="اسم المدرس" className="flex-1 p-2 border rounded" />
-                            <button onClick={addTeacher} className="bg-blue-600 text-white px-4 py-2 rounded">إضافة</button>
+            // واجهة إضافة طالب جديد
+            if (view === 'new') {
+                return (
+                    <div className="bg-white p-8 rounded-xl shadow max-w-2xl mx-auto">
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 className="text-2xl font-bold">تسجيل طالب جديد</h2>
+                            <button onClick={() => setView('list')} className="text-gray-500 hover:text-gray-800">رجوع للقائمة ✕</button>
                         </div>
+                        <form onSubmit={handleAddStudent} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <label className="block mb-1 font-bold text-sm">اسم الطالب الرباعي *</label>
+                                    <input type="text" required value={newStudentData.name} onChange={e=>setNewStudentData({...newStudentData, name: e.target.value})} className="w-full p-2 border rounded" />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 font-bold text-sm">الصف الدراسي *</label>
+                                    <select required value={newStudentData.classId} onChange={e=>setNewStudentData({...newStudentData, classId: e.target.value})} className="w-full p-2 border rounded">
+                                        <option value="">اختر الصف...</option>
+                                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block mb-1 font-bold text-sm">السكن / العنوان</label>
+                                    <input type="text" value={newStudentData.address} onChange={e=>setNewStudentData({...newStudentData, address: e.target.value})} className="w-full p-2 border rounded" />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 font-bold text-sm">رقم هاتف الطالب</label>
+                                    <input type="tel" value={newStudentData.phone} onChange={e=>setNewStudentData({...newStudentData, phone: e.target.value})} className="w-full p-2 border rounded" />
+                                </div>
+                                <div>
+                                    <label className="block mb-1 font-bold text-sm">رقم هاتف ولي الأمر *</label>
+                                    <input type="tel" required value={newStudentData.parentPhone} onChange={e=>setNewStudentData({...newStudentData, parentPhone: e.target.value})} className="w-full p-2 border rounded" />
+                                </div>
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded font-bold mt-4">حفظ بيانات الطالب</button>
+                        </form>
                     </div>
+                );
+            }
 
-                    {/* إسناد مادة למدرس */}
-                    <div className="bg-white p-6 rounded-xl shadow grid grid-cols-2 gap-6">
-                        <div>
-                            <h2 className="text-xl font-bold mb-4">إسناد دورة لمدرس</h2>
-                            <div className="space-y-3">
-                                <select className="w-full p-2 border rounded" onChange={e => setSelectedTeacher(e.target.value)}>
-                                    <option value="">اختر المدرس</option>
-                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                                <select className="w-full p-2 border rounded" onChange={e => setCourseClass(e.target.value)}>
-                                    <option value="">اختر الصف</option>
-                                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <input type="text" placeholder="اسم المادة (مثال: رياضيات)" value={courseSubject} onChange={e => setCourseSubject(e.target.value)} className="w-full p-2 border rounded" />
-                                <input type="number" placeholder="سعر المادة (د.ع)" value={coursePrice} onChange={e => setCoursePrice(e.target.value)} className="w-full p-2 border rounded" />
-                                <button onClick={assignCourse} className="w-full bg-green-600 text-white p-2 rounded">حفظ الدورة</button>
+            // واجهة ملف الطالب الشاملة
+            if (view === 'profile' && selectedStudent) {
+                const studentEnrollments = enrollments.filter(e => e.studentId === selectedStudent.id);
+                
+                return (
+                    <div className="bg-white p-8 rounded-xl shadow">
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 className="text-2xl font-bold text-blue-900">ملف الطالب: {selectedStudent.name}</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => onPrintStatement(selectedStudent)} className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900">🖨️ طباعة كشف حساب (A4)</button>
+                                <button onClick={() => setView('list')} className="bg-gray-200 text-gray-800 px-4 py-2 rounded">رجوع للقائمة</button>
                             </div>
                         </div>
-                        
-                        {/* عرض الدورات المتاحة */}
-                        <div className="bg-gray-50 p-4 rounded border h-64 overflow-y-auto">
-                            <h3 className="font-bold mb-3">الدورات المفتوحة حالياً</h3>
-                            <ul className="space-y-2 text-sm">
-                                {courses.map(c => {
-                                    const tName = teachers.find(t=>t.id === c.teacherId)?.name || 'مجهول';
-                                    const cName = classes.find(cl=>cl.id === c.classId)?.name || 'مجهول';
-                                    return <li key={c.id} className="p-2 bg-white border rounded">
-                                        {c.subjectName} ({cName}) - أستاذ {tName} <br/>
-                                        <span className="text-green-600 font-bold">السعر: {c.price}</span>
-                                    </li>
-                                })}
-                            </ul>
+
+                        {/* معلومات الطالب */}
+                        <div className="grid grid-cols-4 gap-4 mb-8 bg-gray-50 p-4 rounded border">
+                            <div><p className="text-gray-500 text-sm">الصف</p><p className="font-bold">{classes.find(c=>c.id === selectedStudent.classId)?.name}</p></div>
+                            <div><p className="text-gray-500 text-sm">السكن</p><p className="font-bold">{selectedStudent.address || '-'}</p></div>
+                            <div><p className="text-gray-500 text-sm">هاتف الطالب</p><p className="font-bold">{selectedStudent.phone || '-'}</p></div>
+                            <div><p className="text-gray-500 text-sm">هاتف ولي الأمر</p><p className="font-bold text-red-600">{selectedStudent.parentPhone}</p></div>
                         </div>
-                    </div>
-                </div>
-            );
-        }
 
-        // ---------------------------------------------------------
-        // 2. صفحة الطلاب والمالية (القلب النابض للنظام)
-        // ---------------------------------------------------------
-        function StudentsPage({ students, setStudents, classes, courses, teachers, enrollments, setEnrollments, payments, setPayments, onPrint }) {
-            const [newStudentName, setNewStudentName] = useState('');
-            const [newStudentClass, setNewStudentClass] = useState('');
-            const [selectedStudent, setSelectedStudent] = useState(null); // الطالب المفتوح ملفه حالياً
-
-            const addStudent = () => {
-                if(!newStudentName || !newStudentClass) return;
-                const newStudent = { id: Date.now().toString(), name: newStudentName, classId: newStudentClass };
-                setStudents([...students, newStudent]);
-                setNewStudentName('');
-            };
-
-            // جلب دورات الطالب الحالي
-            const studentEnrollments = enrollments.filter(e => e.studentId === selectedStudent?.id);
-
-            return (
-                <div className="flex gap-6 h-full">
-                    {/* قائمة الطلاب والتسجيل */}
-                    <div className="w-1/3 bg-white p-4 rounded-xl shadow flex flex-col h-[80vh]">
-                        <h2 className="text-lg font-bold mb-4 border-b pb-2">تسجيل طالب جديد</h2>
-                        <input type="text" placeholder="اسم الطالب" value={newStudentName} onChange={e=>setNewStudentName(e.target.value)} className="w-full p-2 border rounded mb-2" />
-                        <select value={newStudentClass} onChange={e=>setNewStudentClass(e.target.value)} className="w-full p-2 border rounded mb-2">
-                            <option value="">اختر الصف...</option>
-                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <button onClick={addStudent} className="w-full bg-blue-600 text-white p-2 rounded mb-6">تسجيل الطالب</button>
-
-                        <h2 className="text-lg font-bold mb-2">قائمة الطلاب</h2>
-                        <div className="overflow-y-auto flex-1 space-y-2">
-                            {students.map(s => (
-                                <div key={s.id} onClick={() => setSelectedStudent(s)} className={`p-3 border rounded cursor-pointer hover:bg-blue-50 ${selectedStudent?.id === s.id ? 'bg-blue-100 border-blue-500' : ''}`}>
-                                    <p className="font-bold">{s.name}</p>
-                                    <p className="text-xs text-gray-500">{classes.find(c=>c.id === s.classId)?.name}</p>
-                                </div>
-                            ))}
+                        {/* إضافة مادة */}
+                        <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-end gap-4">
+                            <div className="flex-1">
+                                <label className="block mb-1 font-bold">تسجيل الطالب في مادة جديدة:</label>
+                                <select id="courseSelect" className="w-full p-2 border rounded">
+                                    <option value="">اختر المادة والمدرس...</option>
+                                    {courses.filter(c => c.classId === selectedStudent.classId).map(c => {
+                                        const tName = teachers.find(t=>t.id === c.teacherId)?.name;
+                                        return <option key={c.id} value={c.id}>{c.subjectName} - أ. {tName} ({c.price.toLocaleString()} د.ع)</option>
+                                    })}
+                                </select>
+                            </div>
+                            <button onClick={() => {
+                                const courseId = document.getElementById('courseSelect').value;
+                                if(!courseId) return;
+                                const course = courses.find(c=>c.id === courseId);
+                                if(enrollments.find(e => e.studentId === selectedStudent.id && e.courseId === courseId)) return alert('مسجل مسبقاً');
+                                setEnrollments([...enrollments, { id: Date.now().toString(), studentId: selectedStudent.id, courseId: courseId, totalDue: course.price, totalPaid: 0 }]);
+                            }} className="bg-green-600 text-white px-6 py-2 rounded h-[42px]">إضافة المادة</button>
                         </div>
-                    </div>
 
-                    {/* ملف الطالب والمالية */}
-                    <div className="w-2/3 bg-white p-6 rounded-xl shadow h-[80vh] overflow-y-auto">
-                        {!selectedStudent ? (
-                            <div className="flex h-full items-center justify-center text-gray-400">اختر طالباً من القائمة لعرض ملفه</div>
-                        ) : (
-                            <div>
-                                <h1 className="text-2xl font-bold mb-6 border-b pb-2">ملف الطالب: {selectedStudent.name}</h1>
-                                
-                                {/* تسجيل بمادة جديدة */}
-                                <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                    <h3 className="font-bold mb-2">إضافة مادة للطالب</h3>
-                                    <div className="flex gap-2">
-                                        <select id="courseSelect" className="flex-1 p-2 border rounded">
-                                            <option value="">اختر المادة والمدرس...</option>
-                                            {/* عرض المواد المتوفرة لصف الطالب فقط */}
-                                            {courses.filter(c => c.classId === selectedStudent.classId).map(c => {
-                                                const tName = teachers.find(t=>t.id === c.teacherId)?.name;
-                                                return <option key={c.id} value={c.id}>{c.subjectName} - أستاذ {tName} ({c.price} د.ع)</option>
-                                            })}
-                                        </select>
-                                        <button onClick={() => {
-                                            const courseId = document.getElementById('courseSelect').value;
-                                            if(!courseId) return;
-                                            const course = courses.find(c=>c.id === courseId);
-                                            // تجنب التكرار
-                                            if(enrollments.find(e => e.studentId === selectedStudent.id && e.courseId === courseId)) return alert('الطالب مسجل بهذه الدورة مسبقاً');
-                                            
-                                            setEnrollments([...enrollments, { 
-                                                id: Date.now().toString(), studentId: selectedStudent.id, courseId: courseId, totalDue: course.price, totalPaid: 0 
-                                            }]);
-                                        }} className="bg-green-600 text-white px-4 py-2 rounded">تسجيل بالمادة</button>
-                                    </div>
-                                </div>
-
-                                {/* المواد المسجل بها والحسابات */}
-                                <h3 className="font-bold mb-3">المواد المسجل بها وحالة الدفع</h3>
-                                <div className="space-y-4">
-                                    {studentEnrollments.length === 0 && <p className="text-gray-500">لم يسجل بأي مادة بعد.</p>}
-                                    {studentEnrollments.map(enr => {
-                                        const course = courses.find(c => c.id === enr.courseId);
-                                        const teacher = teachers.find(t => t.id === course?.teacherId);
-                                        const remaining = enr.totalDue - enr.totalPaid;
-                                        
-                                        return (
-                                            <div key={enr.id} className="p-4 border rounded shadow-sm">
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <h4 className="font-bold text-lg">{course?.subjectName} <span className="text-sm font-normal text-gray-500">مع أ. {teacher?.name}</span></h4>
-                                                    <span className={`px-2 py-1 text-sm rounded ${remaining === 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                        المتبقي بذمته: {remaining} د.ع
-                                                    </span>
-                                                </div>
-                                                
-                                                {/* زر الدفع */}
-                                                {remaining > 0 && (
-                                                    <div className="flex gap-2 mt-2 pt-2 border-t">
-                                                        <input type="number" id={`pay_${enr.id}`} placeholder="مبلغ الدفعة" className="p-1 border rounded w-32" />
+                        {/* جدول المواد والحسابات */}
+                        <h3 className="font-bold text-lg mb-3">المواد المسجل بها وحالة التسديد</h3>
+                        <table className="w-full border-collapse">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="border p-3 text-right">المادة (المدرس)</th>
+                                    <th className="border p-3 text-center">المبلغ الكلي</th>
+                                    <th className="border p-3 text-center">الواصل</th>
+                                    <th className="border p-3 text-center">المتبقي</th>
+                                    <th className="border p-3 text-center w-1/4">إجراء (تسديد دفعة)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {studentEnrollments.length === 0 && <tr><td colSpan="5" className="border p-4 text-center text-gray-500">لا توجد مواد مسجلة</td></tr>}
+                                {studentEnrollments.map(enr => {
+                                    const course = courses.find(c => c.id === enr.courseId);
+                                    const teacher = teachers.find(t => t.id === course?.teacherId);
+                                    const remaining = enr.totalDue - enr.totalPaid;
+                                    
+                                    return (
+                                        <tr key={enr.id} className="hover:bg-gray-50">
+                                            <td className="border p-3 font-bold">{course?.subjectName} <br/><span className="text-sm font-normal text-gray-500">أ. {teacher?.name}</span></td>
+                                            <td className="border p-3 text-center">{enr.totalDue.toLocaleString()}</td>
+                                            <td className="border p-3 text-center text-green-600">{enr.totalPaid.toLocaleString()}</td>
+                                            <td className="border p-3 text-center font-bold text-red-600">{remaining.toLocaleString()}</td>
+                                            <td className="border p-3 text-center">
+                                                {remaining > 0 ? (
+                                                    <div className="flex gap-1">
+                                                        <input type="number" id={`pay_${enr.id}`} placeholder="المبلغ" className="w-20 p-1 border rounded text-sm text-center" />
                                                         <button onClick={() => {
                                                             const amount = parseInt(document.getElementById(`pay_${enr.id}`).value);
                                                             if(!amount || amount <= 0 || amount > remaining) return alert('مبلغ غير صحيح');
-                                                            
-                                                            // تحديث الرصيد
                                                             const updatedEnrollments = enrollments.map(e => e.id === enr.id ? {...e, totalPaid: e.totalPaid + amount} : e);
                                                             setEnrollments(updatedEnrollments);
-                                                            
-                                                            // تسجيل الوصل
-                                                            const paymentRecord = { id: Math.floor(Math.random()*90000) + 10000, enrollmentId: enr.id, amount: amount };
-                                                            setPayments([...payments, paymentRecord]);
-                                                            
-                                                            // طباعة
-                                                            onPrint(paymentRecord, selectedStudent.name, course.subjectName);
+                                                            setPayments([...payments, { id: Date.now().toString(), enrollmentId: enr.id, amount: amount }]);
                                                             document.getElementById(`pay_${enr.id}`).value = '';
-                                                        }} className="bg-blue-600 text-white px-3 py-1 rounded text-sm">تسديد وطباعة وصل</button>
+                                                            alert('تم تسجيل الدفعة بنجاح. اطبع كشف الحساب لرؤية التحديث.');
+                                                        }} className="bg-blue-600 text-white px-2 py-1 rounded text-sm flex-1">تسديد</button>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
+                                                ) : <span className="text-green-600 font-bold">مُسدد بالكامل ✓</span>}
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            }
+
+            // واجهة قائمة الطلاب (الافتراضية)
+            return (
+                <div className="bg-white p-8 rounded-xl shadow h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold">سجل الطلاب</h2>
+                        <button onClick={() => setView('new')} className="bg-green-600 text-white px-4 py-2 rounded font-bold">+ تسجيل طالب جديد</button>
+                    </div>
+                    
+                    <div className="overflow-y-auto flex-1">
+                        <table className="w-full border-collapse">
+                            <thead className="bg-slate-800 text-white sticky top-0">
+                                <tr>
+                                    <th className="p-3 text-right font-normal">اسم الطالب</th>
+                                    <th className="p-3 text-right font-normal">الصف</th>
+                                    <th className="p-3 text-right font-normal">هاتف ولي الأمر</th>
+                                    <th className="p-3 text-center font-normal">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {students.length === 0 && <tr><td colSpan="4" className="p-4 text-center text-gray-500 border-b">لا يوجد طلاب مسجلين</td></tr>}
+                                {students.map(s => (
+                                    <tr key={s.id} className="border-b hover:bg-gray-50 transition">
+                                        <td className="p-3 font-bold">{s.name}</td>
+                                        <td className="p-3 text-gray-600">{classes.find(c=>c.id === s.classId)?.name}</td>
+                                        <td className="p-3">{s.parentPhone}</td>
+                                        <td className="p-3 text-center">
+                                            <button onClick={() => { setSelectedStudent(s); setView('profile'); }} className="bg-blue-100 text-blue-700 px-4 py-1 rounded text-sm hover:bg-blue-200">عرض الملف الشامل</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             );
         }
 
-        // --- صفحات مصغرة ---
+        // --- صفحات مصغرة أخرى (لضمان عمل الكود الشامل) ---
         function DashboardPage({ students, payments }) {
             const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
             return (
                 <div className="grid grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded shadow border-r-4 border-blue-500">
-                        <p className="text-gray-500">الطلاب المسجلين</p><p className="text-3xl font-bold">{students.length}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded shadow border-r-4 border-green-500">
-                        <p className="text-gray-500">إجمالي المقبوضات</p><p className="text-3xl font-bold">{totalRevenue} د.ع</p>
-                    </div>
+                    <div className="bg-white p-6 rounded shadow border-r-4 border-blue-500"><p className="text-gray-500">الطلاب المسجلين</p><p className="text-3xl font-bold">{students.length}</p></div>
+                    <div className="bg-white p-6 rounded shadow border-r-4 border-green-500"><p className="text-gray-500">إجمالي المقبوضات</p><p className="text-3xl font-bold">{totalRevenue.toLocaleString()} د.ع</p></div>
                 </div>
             );
         }
@@ -332,6 +381,39 @@
                         <button onClick={()=>{ if(newClassName) setClasses([...classes, {id:Date.now().toString(), name:newClassName}]); setNewClassName(''); }} className="bg-green-600 text-white px-4 py-2 rounded">إضافة</button>
                     </div>
                     <ul className="space-y-2">{classes.map(c => <li key={c.id} className="p-3 bg-gray-50 border rounded">{c.name}</li>)}</ul>
+                </div>
+            );
+        }
+
+        function TeachersPage({ teachers, setTeachers, classes, courses, setCourses }) {
+            const [newTeacher, setNewTeacher] = useState('');
+            const [selectedTeacher, setSelectedTeacher] = useState('');
+            const [courseClass, setCourseClass] = useState('');
+            const [courseSubject, setCourseSubject] = useState('');
+            const [coursePrice, setCoursePrice] = useState('');
+            
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-xl shadow flex gap-4 max-w-2xl">
+                        <input type="text" value={newTeacher} onChange={e => setNewTeacher(e.target.value)} placeholder="اسم المدرس الجديد" className="flex-1 p-2 border rounded" />
+                        <button onClick={() => { if(newTeacher){ setTeachers([...teachers, { id: Date.now().toString(), name: newTeacher }]); setNewTeacher(''); } }} className="bg-blue-600 text-white px-4 rounded">إضافة المدرس</button>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl shadow grid grid-cols-2 gap-6">
+                        <div>
+                            <h2 className="text-xl font-bold mb-4">فتح دورة جديدة למدرس</h2>
+                            <div className="space-y-3">
+                                <select className="w-full p-2 border rounded" onChange={e => setSelectedTeacher(e.target.value)}><option value="">اختر المدرس</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+                                <select className="w-full p-2 border rounded" onChange={e => setCourseClass(e.target.value)}><option value="">اختر الصف</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                                <input type="text" placeholder="المادة (فيزياء)" value={courseSubject} onChange={e => setCourseSubject(e.target.value)} className="w-full p-2 border rounded" />
+                                <input type="number" placeholder="السعر" value={coursePrice} onChange={e => setCoursePrice(e.target.value)} className="w-full p-2 border rounded" />
+                                <button onClick={() => { if(selectedTeacher && courseClass && courseSubject && coursePrice) { setCourses([...courses, { id: Date.now().toString(), teacherId: selectedTeacher, classId: courseClass, subjectName: courseSubject, price: parseInt(coursePrice) }]); setCourseSubject(''); setCoursePrice(''); } }} className="w-full bg-green-600 text-white p-2 rounded">حفظ الدورة</button>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded border h-64 overflow-y-auto">
+                            <h3 className="font-bold mb-3">الدورات الحالية</h3>
+                            <ul className="space-y-2 text-sm">{courses.map(c => <li key={c.id} className="p-2 bg-white border rounded">{c.subjectName} ({classes.find(cl=>cl.id === c.classId)?.name}) - أ. {teachers.find(t=>t.id === c.teacherId)?.name} | {c.price.toLocaleString()} د.ع</li>)}</ul>
+                        </div>
+                    </div>
                 </div>
             );
         }
