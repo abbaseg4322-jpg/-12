@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المعاهد الخصوصية</title>
+    <!-- تضمين مكتبات React و Tailwind مباشرة لتشغيل الملف بدون أي إعدادات -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- إعداد خط عربي -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        /* إخفاء القوائم عند الطباعة */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden">
+    <!-- هنا سيتم رسم البرنامج -->
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- المكون الرئيسي للبرنامج ---
+        function App() {
+            const [activePage, setActivePage] = useState('dashboard');
+            
+            // قاعدة بيانات بسيطة تعتمد على متصفح الحاسوب (Offline)
+            const [settings, setSettings] = useState(() => JSON.parse(localStorage.getItem('institute_settings')) || { name: 'معهد النجاح', logo: '' });
+            const [classes, setClasses] = useState(() => JSON.parse(localStorage.getItem('institute_classes')) || []);
+            const [teachers, setTeachers] = useState(() => JSON.parse(localStorage.getItem('institute_teachers')) || []);
+
+            // حفظ التعديلات تلقائياً في حاسوب المستخدم
+            useEffect(() => { localStorage.setItem('institute_settings', JSON.stringify(settings)); }, [settings]);
+            useEffect(() => { localStorage.setItem('institute_classes', JSON.stringify(classes)); }, [classes]);
+            useEffect(() => { localStorage.setItem('institute_teachers', JSON.stringify(teachers)); }, [teachers]);
+
+            return (
+                <div className="flex h-screen w-full">
+                    
+                    {/* --- القائمة الجانبية --- */}
+                    <aside className="w-64 bg-slate-800 text-white flex flex-col no-print shadow-xl">
+                        <div className="p-6 border-b border-slate-700">
+                            <h2 className="text-xl font-bold">{settings.name}</h2>
+                            <p className="text-xs text-slate-400">نظام الإدارة</p>
+                        </div>
+                        <nav className="flex-1 p-4 space-y-2">
+                            <button onClick={() => setActivePage('dashboard')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'dashboard' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>📊 الرئيسية</button>
+                            <button onClick={() => setActivePage('classes')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'classes' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>📚 الصفوف والمواد</button>
+                            <button onClick={() => setActivePage('teachers')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'teachers' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>👨‍🏫 المدرسين</button>
+                            <button onClick={() => setActivePage('students')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'students' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>👨‍🎓 الطلاب والوصولات</button>
+                            <button onClick={() => setActivePage('settings')} className={`w-full text-right p-3 rounded transition-colors ${activePage === 'settings' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>⚙️ الإعدادات</button>
+                        </nav>
+                    </aside>
+
+                    {/* --- مساحة العرض الرئيسية --- */}
+                    <main className="flex-1 overflow-y-auto bg-gray-50 p-8 no-print">
+                        {activePage === 'dashboard' && <DashboardPage />}
+                        {activePage === 'settings' && <SettingsPage settings={settings} setSettings={setSettings} />}
+                        {activePage === 'classes' && <ClassesPage classes={classes} setClasses={setClasses} />}
+                        {activePage === 'teachers' && <TeachersPage teachers={teachers} setTeachers={setTeachers} classes={classes} />}
+                        {activePage === 'students' && <div className="text-xl p-4 bg-white rounded shadow text-gray-500">جاري بناء قسم تسجيل الطلاب والوصولات المالية...</div>}
+                    </main>
+
+                    {/* --- قالب الطباعة المخفي (يظهر فقط عند طباعة وصولات) --- */}
+                    <div className="print-only p-10 w-full text-center">
+                        <h1 className="text-3xl font-bold">{settings.name}</h1>
+                        <hr className="my-4 border-2 border-black" />
+                        <h2 className="text-xl mb-4">وصل قبض مالي</h2>
+                        {/* سيتم تعبئة تفاصيل الوصل هنا لاحقاً */}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- صفحة الرئيسية ---
+        function DashboardPage() {
+            return (
+                <div>
+                    <h2 className="text-2xl font-bold mb-6 text-gray-800">نظرة عامة على المعهد</h2>
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-xl shadow border-r-4 border-blue-500">
+                            <p className="text-gray-500">إجمالي الطلاب</p><p className="text-3xl font-bold">0</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow border-r-4 border-green-500">
+                            <p className="text-gray-500">إيرادات اليوم</p><p className="text-3xl font-bold">0 د.ع</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-xl shadow border-r-4 border-purple-500">
+                            <p className="text-gray-500">المدرسين</p><p className="text-3xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- صفحة الإعدادات ---
+        function SettingsPage({ settings, setSettings }) {
+            const handleSave = (e) => {
+                e.preventDefault();
+                alert('تم حفظ إعدادات المعهد بنجاح!');
+            };
+            return (
+                <div className="bg-white p-8 rounded-xl shadow max-w-2xl">
+                    <h2 className="text-2xl font-bold mb-6">إعدادات المعهد الأساسية</h2>
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <div>
+                            <label className="block text-gray-700 mb-2">اسم المعهد (سيظهر في الوصولات)</label>
+                            <input type="text" value={settings.name} onChange={e => setSettings({...settings, name: e.target.value})} className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-500" required />
+                        </div>
+                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">حفظ الإعدادات</button>
+                    </form>
+                </div>
+            );
+        }
+
+        // --- صفحة الصفوف (إضافة صفوف ومواد عامة) ---
+        function ClassesPage({ classes, setClasses }) {
+            const [newClassName, setNewClassName] = useState('');
+            const addClass = () => {
+                if(newClassName.trim() === '') return;
+                setClasses([...classes, { id: Date.now(), name: newClassName, subjects: [] }]);
+                setNewClassName('');
+            };
+            return (
+                <div className="bg-white p-8 rounded-xl shadow">
+                    <h2 className="text-2xl font-bold mb-6">إدارة الصفوف الدراسية</h2>
+                    <div className="flex gap-2 mb-6 max-w-md">
+                        <input type="text" value={newClassName} onChange={e => setNewClassName(e.target.value)} placeholder="اسم الصف (مثال: سادس إعدادي)" className="flex-1 p-2 border rounded" />
+                        <button onClick={addClass} className="bg-green-600 text-white px-4 py-2 rounded">إضافة صف</button>
+                    </div>
+                    <ul className="space-y-3">
+                        {classes.length === 0 && <p className="text-gray-500">لا توجد صفوف مضافة حالياً.</p>}
+                        {classes.map(cls => (
+                            <li key={cls.id} className="p-4 bg-gray-50 border rounded flex justify-between">
+                                <span className="font-bold">{cls.name}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            );
+        }
+
+        // --- صفحة المدرسين (إضافة مدرس) ---
+        function TeachersPage({ teachers, setTeachers }) {
+            const [newTeacher, setNewTeacher] = useState('');
+            const addTeacher = () => {
+                if(newTeacher.trim() === '') return;
+                setTeachers([...teachers, { id: Date.now(), name: newTeacher, courses: [] }]);
+                setNewTeacher('');
+            };
+            return (
+                <div className="bg-white p-8 rounded-xl shadow">
+                    <h2 className="text-2xl font-bold mb-6">إدارة كادر التدريس</h2>
+                    <div className="flex gap-2 mb-6 max-w-md">
+                        <input type="text" value={newTeacher} onChange={e => setNewTeacher(e.target.value)} placeholder="اسم الأستاذ" className="flex-1 p-2 border rounded" />
+                        <button onClick={addTeacher} className="bg-blue-600 text-white px-4 py-2 rounded">إضافة مدرس</button>
+                    </div>
+                    <ul className="grid grid-cols-2 gap-4">
+                        {teachers.length === 0 && <p className="text-gray-500 col-span-2">لا يوجد مدرسين مسجلين.</p>}
+                        {teachers.map(teacher => (
+                            <li key={teacher.id} className="p-4 border rounded shadow-sm hover:shadow-md transition">
+                                <h3 className="font-bold text-lg text-blue-800">أستاذ {teacher.name}</h3>
+                                <button className="mt-2 text-sm text-blue-600 hover:underline">+ إسناد مادة لهذا المدرس</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            );
+        }
+
+        // تشغيل البرنامج
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
